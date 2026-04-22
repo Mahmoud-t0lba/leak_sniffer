@@ -12,10 +12,13 @@ void main() {
       final analysisOptions = await _readAnalysisOptions(project);
 
       expect(result.createdAnalysisOptions, isTrue);
+      expect(result.addedCustomLintPlugin, isTrue);
       expect(
         analysisOptions,
         contains('include: package:leak_sniffer/leak_sniffer.yaml'),
       );
+      expect(analysisOptions, contains('plugins:'));
+      expect(analysisOptions, contains('- custom_lint'));
     });
 
     test('preserves an existing include and adds custom_lint plugin', () async {
@@ -70,6 +73,10 @@ analyzer:
       final project = await _createProject(
         analysisOptions: '''
 include: package:leak_sniffer/leak_sniffer.yaml
+
+analyzer:
+  plugins:
+    - custom_lint
 ''',
       );
 
@@ -80,6 +87,25 @@ include: package:leak_sniffer/leak_sniffer.yaml
       expect(result.changed, isFalse);
       expect(after, before);
     });
+
+    test(
+      'adds the root custom_lint plugin when only the packaged include exists',
+      () async {
+        final project = await _createProject(
+          analysisOptions: '''
+include: package:leak_sniffer/leak_sniffer.yaml
+''',
+        );
+
+        final result = await ensureLeakSnifferConfigured(project);
+        final analysisOptions = await _readAnalysisOptions(project);
+
+        expect(result.addedInclude, isFalse);
+        expect(result.addedCustomLintPlugin, isTrue);
+        expect(analysisOptions, contains('plugins:'));
+        expect(analysisOptions, contains('- custom_lint'));
+      },
+    );
 
     test(
       'migrates the legacy packaged include to the new include path',
@@ -95,11 +121,13 @@ include: package:leak_sniffer/analysis_options.yaml
 
         expect(result.addedInclude, isTrue);
         expect(result.changed, isTrue);
-        expect(result.addedCustomLintPlugin, isFalse);
+        expect(result.addedCustomLintPlugin, isTrue);
         expect(
           analysisOptions,
           contains('include: package:leak_sniffer/leak_sniffer.yaml'),
         );
+        expect(analysisOptions, contains('plugins:'));
+        expect(analysisOptions, contains('- custom_lint'));
         expect(
           analysisOptions,
           isNot(contains('package:leak_sniffer/analysis_options.yaml')),
