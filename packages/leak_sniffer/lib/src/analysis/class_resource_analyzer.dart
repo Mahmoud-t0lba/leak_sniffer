@@ -7,9 +7,15 @@ import 'resource_spec.dart';
 
 @immutable
 class TrackedField {
-  const TrackedField({required this.name, required this.variable, required this.spec});
+  const TrackedField({
+    required this.name,
+    required this.reportNode,
+    required this.variable,
+    required this.spec,
+  });
 
   final String name;
+  final AstNode reportNode;
   final VariableDeclaration variable;
   final ResourceSpec spec;
 }
@@ -17,7 +23,12 @@ class TrackedField {
 class ClassResourceAnalyzer {
   const ClassResourceAnalyzer({
     required List<ResourceSpec> specs,
-    Set<String> lifecycleMethodNames = const {'dispose', 'close'},
+    Set<String> lifecycleMethodNames = const {
+      'dispose',
+      'close',
+      'cancel',
+      'onClose',
+    },
   }) : _specs = specs,
        _lifecycleMethodNames = lifecycleMethodNames;
 
@@ -32,16 +43,27 @@ class ClassResourceAnalyzer {
 
     _markOwnedFields(node, fieldRecords);
 
-    final ownedFields = fieldRecords.values.where((record) => record.isOwned && record.spec != null);
+    final ownedFields = fieldRecords.values.where(
+      (record) => record.isOwned && record.spec != null,
+    );
     if (ownedFields.isEmpty) {
       return const [];
     }
 
     final methodBodies = _collectMethodBodies(node);
-    final lifecycleRoots = methodBodies.keys.where(_lifecycleMethodNames.contains);
+    final lifecycleRoots = methodBodies.keys.where(
+      _lifecycleMethodNames.contains,
+    );
     if (lifecycleRoots.isEmpty) {
       return ownedFields
-          .map((record) => TrackedField(name: record.name, variable: record.variable, spec: record.spec!))
+          .map(
+            (record) => TrackedField(
+              name: record.name,
+              reportNode: record.reportNode,
+              variable: record.variable,
+              spec: record.spec!,
+            ),
+          )
           .toList(growable: false);
     }
 
@@ -53,7 +75,14 @@ class ClassResourceAnalyzer {
 
     return ownedFields
         .where((record) => !cleanedFieldNames.contains(record.name))
-        .map((record) => TrackedField(name: record.name, variable: record.variable, spec: record.spec!))
+        .map(
+          (record) => TrackedField(
+            name: record.name,
+            reportNode: record.reportNode,
+            variable: record.variable,
+            spec: record.spec!,
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -67,10 +96,15 @@ class ClassResourceAnalyzer {
 
       for (final variable in member.fields.variables) {
         final name = variable.name.lexeme;
-        final record = _FieldRecord(name: name, variable: variable);
+        final record = _FieldRecord(
+          name: name,
+          reportNode: member,
+          variable: variable,
+        );
 
         record.spec =
-            _matchSpec(variable.declaredFragment?.element.type) ?? _matchSpec(variable.initializer?.staticType);
+            _matchSpec(variable.declaredFragment?.element.type) ??
+            _matchSpec(variable.initializer?.staticType);
 
         final initializer = variable.initializer;
         if (initializer != null && _looksLikeOwnedCreation(initializer)) {
@@ -89,7 +123,10 @@ class ClassResourceAnalyzer {
     return fieldRecords;
   }
 
-  void _markOwnedFields(ClassDeclaration node, Map<String, _FieldRecord> fieldRecords) {
+  void _markOwnedFields(
+    ClassDeclaration node,
+    Map<String, _FieldRecord> fieldRecords,
+  ) {
     for (final member in node.members) {
       if (member is ConstructorDeclaration) {
         for (final initializer in member.initializers) {
@@ -107,17 +144,28 @@ class ClassResourceAnalyzer {
         member.body.accept(
           _OwnedFieldAssignmentVisitor(
             onAssignment: (fieldName, expression) {
-              _markOwnedField(fieldRecords: fieldRecords, fieldName: fieldName, expression: expression);
+              _markOwnedField(
+                fieldRecords: fieldRecords,
+                fieldName: fieldName,
+                expression: expression,
+              );
             },
           ),
         );
       }
 
-      if (member is MethodDeclaration && !member.isStatic && !member.isGetter && !member.isSetter) {
+      if (member is MethodDeclaration &&
+          !member.isStatic &&
+          !member.isGetter &&
+          !member.isSetter) {
         member.body.accept(
           _OwnedFieldAssignmentVisitor(
             onAssignment: (fieldName, expression) {
-              _markOwnedField(fieldRecords: fieldRecords, fieldName: fieldName, expression: expression);
+              _markOwnedField(
+                fieldRecords: fieldRecords,
+                fieldName: fieldName,
+                expression: expression,
+              );
             },
           ),
         );
@@ -149,7 +197,10 @@ class ClassResourceAnalyzer {
     final methodBodies = <String, FunctionBody>{};
 
     for (final member in node.members) {
-      if (member is! MethodDeclaration || member.isStatic || member.isGetter || member.isSetter) {
+      if (member is! MethodDeclaration ||
+          member.isStatic ||
+          member.isGetter ||
+          member.isSetter) {
         continue;
       }
 
@@ -239,9 +290,14 @@ class ClassResourceAnalyzer {
 }
 
 class _FieldRecord {
-  _FieldRecord({required this.name, required this.variable});
+  _FieldRecord({
+    required this.name,
+    required this.reportNode,
+    required this.variable,
+  });
 
   final String name;
+  final AstNode reportNode;
   final VariableDeclaration variable;
   ResourceSpec? spec;
   bool isOwned = false;
@@ -286,7 +342,8 @@ class _LifecycleCleanupVisitor extends RecursiveAstVisitor<void> {
       if (fieldSpec != null && fieldSpec.cleanupMethodName == methodName) {
         onCleanup(targetFieldName);
       }
-    } else if (_isLocalHelperInvocation(node) && helperMethodNames.contains(methodName)) {
+    } else if (_isLocalHelperInvocation(node) &&
+        helperMethodNames.contains(methodName)) {
       onHelperInvocation(methodName);
     }
 

@@ -14,7 +14,7 @@ void main() {
         ),
       );
 
-      expect(errors, hasLength(6));
+      expect(errors, hasLength(8));
       expect(
         errors.every((error) => error.diagnosticCode.name == rule.code.name),
         isTrue,

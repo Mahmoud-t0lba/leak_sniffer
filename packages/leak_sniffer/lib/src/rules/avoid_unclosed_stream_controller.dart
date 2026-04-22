@@ -6,30 +6,54 @@ import 'package:custom_lint_builder/custom_lint_builder.dart';
 
 import '../analysis/class_resource_analyzer.dart';
 import '../analysis/resource_spec.dart';
+import '../fixes/add_lifecycle_cleanup_fix.dart';
 
 class AvoidUnclosedStreamControllerRule extends DartLintRule {
   const AvoidUnclosedStreamControllerRule() : super(code: _code);
 
   static const _code = LintCode(
     name: 'avoid_unclosed_stream_controller',
-    problemMessage: 'StreamController fields created by a class should be closed in dispose() or close().',
-    correctionMessage: 'Call close() on the controller from a lifecycle method before the class is discarded.',
+    problemMessage:
+        'Stream controller-like fields created by a class should be closed from a lifecycle cleanup method.',
+    correctionMessage:
+        'Call close() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
     errorSeverity: ErrorSeverity.WARNING,
   );
 
-  static const _resourceSpec = ResourceSpec(
-    debugName: 'StreamController',
-    typeChecker: TypeChecker.fromUrl('dart:async#StreamController'),
-    cleanupAction: CleanupAction.close,
+  static const _resourceAnalyzer = ClassResourceAnalyzer(
+    specs: [
+      ResourceSpec(
+        debugName: 'StreamController',
+        typeChecker: TypeChecker.fromUrl('dart:async#StreamController'),
+        cleanupAction: CleanupAction.close,
+      ),
+      ResourceSpec(
+        debugName: 'Subject',
+        typeNames: ['Subject'],
+        typeNameSuffixes: ['Subject'],
+        cleanupAction: CleanupAction.close,
+      ),
+    ],
   );
 
-  static const _resourceAnalyzer = ClassResourceAnalyzer(specs: [_resourceSpec]);
+  static final _fix = AddLifecycleCleanupFix(
+    resourceAnalyzer: _resourceAnalyzer,
+  );
+
+  static ClassResourceAnalyzer get resourceAnalyzer => _resourceAnalyzer;
 
   @override
-  void run(CustomLintResolver resolver, ErrorReporter reporter, CustomLintContext context) {
+  List<Fix> getFixes() => [_fix];
+
+  @override
+  void run(
+    CustomLintResolver resolver,
+    ErrorReporter reporter,
+    CustomLintContext context,
+  ) {
     context.registry.addClassDeclaration((node) {
       for (final field in _resourceAnalyzer.findLeakingFields(node)) {
-        reporter.atNode(field.variable, code);
+        reporter.atNode(field.reportNode, code);
       }
     });
   }

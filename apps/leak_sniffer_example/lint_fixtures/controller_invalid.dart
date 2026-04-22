@@ -143,3 +143,20 @@ class _MissingPageControllerCleanupViewState
     return const SizedBox.shrink();
   }
 }
+
+class MissingValueNotifierCleanupOwner extends ChangeNotifier {
+  // expect_lint: avoid_undisposed_controller
+  final ValueNotifier<int> _counter = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+}
+
+class MissingGetxLikeControllerCleanupOwner {
+  // expect_lint: avoid_undisposed_controller
+  final TextEditingController _controller = TextEditingController();
+
+  void onClose() {}
+}

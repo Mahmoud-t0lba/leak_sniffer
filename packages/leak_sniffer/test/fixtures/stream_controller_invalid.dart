@@ -2,6 +2,10 @@
 
 import 'dart:async';
 
+class BehaviorSubject<T> {
+  void close() {}
+}
+
 class MissingControllerCloseInDispose {
   final StreamController<int> _controller = StreamController<int>();
 
@@ -14,4 +18,10 @@ class MissingControllerLifecycleMethod {
   MissingControllerLifecycleMethod() {
     _controller = StreamController<String>.broadcast();
   }
+}
+
+class MissingSubjectCloseInDispose {
+  final BehaviorSubject<int> _subject = BehaviorSubject<int>();
+
+  void dispose() {}
 }

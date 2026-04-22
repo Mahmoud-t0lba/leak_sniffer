@@ -19,15 +19,48 @@ extension CleanupActionX on CleanupAction {
 
 @immutable
 class ResourceSpec {
-  const ResourceSpec({required this.debugName, required this.typeChecker, required this.cleanupAction});
+  const ResourceSpec({
+    required this.debugName,
+    required this.cleanupAction,
+    this.typeChecker,
+    this.typeNames = const [],
+    this.typeNameSuffixes = const [],
+  });
 
   final String debugName;
-  final TypeChecker typeChecker;
   final CleanupAction cleanupAction;
+  final TypeChecker? typeChecker;
+  final List<String> typeNames;
+  final List<String> typeNameSuffixes;
 
   String get cleanupMethodName => cleanupAction.methodName;
 
   bool matchesType(DartType? type) {
-    return type != null && typeChecker.isAssignableFromType(type);
+    if (type == null) {
+      return false;
+    }
+
+    final checker = typeChecker;
+    if (checker != null && checker.isAssignableFromType(type)) {
+      return true;
+    }
+
+    if (type is! InterfaceType) {
+      return false;
+    }
+
+    final typeName = type.element.name;
+    if (typeName == null) {
+      return false;
+    }
+
+    final matchesByName =
+        typeNames.contains(typeName) || typeNameSuffixes.any(typeName.endsWith);
+
+    if (!matchesByName) {
+      return false;
+    }
+
+    return type.getMethod(cleanupMethodName) != null;
   }
 }

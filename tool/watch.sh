@@ -10,4 +10,4 @@ if [[ ! -f "$APP_DIR/.dart_tool/package_config.json" ]]; then
 fi
 
 cd "$APP_DIR"
-dart run custom_lint --watch
+dart run leak_sniffer --watch

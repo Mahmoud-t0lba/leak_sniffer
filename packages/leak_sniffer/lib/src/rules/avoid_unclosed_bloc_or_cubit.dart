@@ -8,26 +8,27 @@ import '../analysis/class_resource_analyzer.dart';
 import '../analysis/resource_spec.dart';
 import '../fixes/add_lifecycle_cleanup_fix.dart';
 
-class AvoidUncancelledStreamSubscriptionRule extends DartLintRule {
-  const AvoidUncancelledStreamSubscriptionRule() : super(code: _code);
+class AvoidUnclosedBlocOrCubitRule extends DartLintRule {
+  const AvoidUnclosedBlocOrCubitRule() : super(code: _code);
 
   static const _code = LintCode(
-    name: 'avoid_uncancelled_stream_subscription',
+    name: 'avoid_unclosed_bloc_or_cubit',
     problemMessage:
-        'StreamSubscription fields created by a class should be cancelled from a lifecycle cleanup method.',
+        'Bloc and Cubit fields created by a class should be closed from a lifecycle cleanup method.',
     correctionMessage:
-        'Call cancel() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
+        'Call close() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
     errorSeverity: ErrorSeverity.WARNING,
   );
 
-  static const _resourceSpec = ResourceSpec(
-    debugName: 'StreamSubscription',
-    typeChecker: TypeChecker.fromUrl('dart:async#StreamSubscription'),
-    cleanupAction: CleanupAction.cancel,
-  );
-
   static const _resourceAnalyzer = ClassResourceAnalyzer(
-    specs: [_resourceSpec],
+    specs: [
+      ResourceSpec(
+        debugName: 'BlocBase',
+        typeNames: ['BlocBase', 'Cubit'],
+        typeNameSuffixes: ['Bloc', 'Cubit'],
+        cleanupAction: CleanupAction.close,
+      ),
+    ],
   );
 
   static final _fix = AddLifecycleCleanupFix(

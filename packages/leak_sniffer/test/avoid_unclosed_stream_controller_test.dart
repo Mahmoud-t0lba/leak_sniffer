@@ -12,7 +12,7 @@ void main() {
         _fixtureFile('stream_controller_invalid.dart'),
       );
 
-      expect(errors, hasLength(2));
+      expect(errors, hasLength(3));
       expect(
         errors.every((error) => error.diagnosticCode.name == rule.code.name),
         isTrue,

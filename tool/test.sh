@@ -40,5 +40,28 @@ echo
 echo "Running custom_lint against the example app..."
 (
   cd "$APP_DIR"
-  dart run custom_lint
+  lint_output="$(dart run leak_sniffer --check 2>&1 || true)"
+  printf '%s\n' "$lint_output"
+
+  if [[ "$lint_output" != *"avoid_unclosed_stream_controller"* ]]; then
+    echo
+    echo "Expected the example app to surface its intentional stream controller demo lint."
+    exit 1
+  fi
+
+  if [[ "$lint_output" != *"lib/main.dart"* ]]; then
+    echo
+    echo "Expected the intentional example-app lint to point at lib/main.dart."
+    exit 1
+  fi
+
+  if [[ "$lint_output" != *"1 issue found."* ]]; then
+    echo
+    echo "Expected exactly one intentional lint from the example app."
+    exit 1
+  fi
 )
+
+echo
+echo "Verifying one-install consumer setup..."
+"$ROOT_DIR/tool/test_consumer_setup.sh"

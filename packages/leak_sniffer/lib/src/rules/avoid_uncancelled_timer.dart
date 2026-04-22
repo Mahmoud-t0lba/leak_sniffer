@@ -8,21 +8,21 @@ import '../analysis/class_resource_analyzer.dart';
 import '../analysis/resource_spec.dart';
 import '../fixes/add_lifecycle_cleanup_fix.dart';
 
-class AvoidUncancelledStreamSubscriptionRule extends DartLintRule {
-  const AvoidUncancelledStreamSubscriptionRule() : super(code: _code);
+class AvoidUncancelledTimerRule extends DartLintRule {
+  const AvoidUncancelledTimerRule() : super(code: _code);
 
   static const _code = LintCode(
-    name: 'avoid_uncancelled_stream_subscription',
+    name: 'avoid_uncancelled_timer',
     problemMessage:
-        'StreamSubscription fields created by a class should be cancelled from a lifecycle cleanup method.',
+        'Timer fields created by a class should be cancelled from a lifecycle cleanup method.',
     correctionMessage:
         'Call cancel() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
     errorSeverity: ErrorSeverity.WARNING,
   );
 
   static const _resourceSpec = ResourceSpec(
-    debugName: 'StreamSubscription',
-    typeChecker: TypeChecker.fromUrl('dart:async#StreamSubscription'),
+    debugName: 'Timer',
+    typeChecker: TypeChecker.fromUrl('dart:async#Timer'),
     cleanupAction: CleanupAction.cancel,
   );
 

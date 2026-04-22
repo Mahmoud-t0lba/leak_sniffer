@@ -9,7 +9,20 @@ This repository is a production-style starter workspace for a reusable `custom_l
 - `tool/`: bootstrap, watch, and test automation
 - `Makefile`: one-command shortcuts for common tasks
 
-## Quick Start
+The published package is designed to be plug-and-play for consumers:
+
+```yaml
+dev_dependencies:
+  leak_sniffer: ^0.1.0
+```
+
+```bash
+dart run leak_sniffer
+```
+
+For CLI or CI verification in a consuming project, run `dart run leak_sniffer --check`.
+
+## Workspace Quick Start
 
 ```bash
 make setup
@@ -17,6 +30,8 @@ make watch
 ```
 
 `make setup` installs dependencies for both the lint package and the example app. `make watch` starts `custom_lint` in watch mode against the example app so you can iterate on rules immediately.
+
+These commands are for developing this repository itself, not for app teams consuming `leak_sniffer`.
 
 ## Workspace Layout
 

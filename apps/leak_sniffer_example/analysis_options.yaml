@@ -1,11 +1,1 @@
-include: package:flutter_lints/flutter.yaml
-
-analyzer:
-  plugins:
-    - custom_lint
-
-custom_lint:
-  rules:
-    - avoid_unclosed_stream_controller
-    - avoid_uncancelled_stream_subscription
-    - avoid_undisposed_controller
+include: package:leak_sniffer/analysis_options.yaml

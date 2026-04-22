@@ -8,17 +8,17 @@ Example صغير وواضح لقاعدة `avoid_unclosed_stream_controller`.
 
 فيه `StreamController<int>` بيتعمل له `add()` داخل الزرار، لكن مفيش `close()` داخل `dispose()`.
 
-شغّل من root:
+لو أنت بتطوّر نفس الـworkspace، شغّل من root:
 
 ```bash
 make watch
 ```
 
-أو:
+ولو عايز نفس تجربة المستخدم النهائي جوه المشروع:
 
 ```bash
 cd apps/leak_sniffer_example
-dart run custom_lint
+dart run leak_sniffer --check
 ```
 
 ولما تصلح الكود بالشكل ده، الـwarning يختفي:

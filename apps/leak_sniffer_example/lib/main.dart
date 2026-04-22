@@ -11,19 +11,12 @@ class LeakSnifferExampleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF0F766E),
-      brightness: Brightness.light,
-    );
+    final colorScheme = ColorScheme.fromSeed(seedColor: const Color(0xFF0F766E), brightness: Brightness.light);
 
     return MaterialApp(
       title: 'leak_sniffer Demo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: colorScheme,
-        scaffoldBackgroundColor: const Color(0xFFF6F3EC),
-        useMaterial3: true,
-      ),
+      theme: ThemeData(colorScheme: colorScheme, scaffoldBackgroundColor: const Color(0xFFF6F3EC), useMaterial3: true),
       home: const StreamLeakDemoPage(),
     );
   }
@@ -37,23 +30,16 @@ class StreamLeakDemoPage extends StatefulWidget {
 }
 
 class _StreamLeakDemoPageState extends State<StreamLeakDemoPage> {
-  // This is the intentional demo case:
-  // leak_sniffer should warn because this controller is created and used,
-  // but never closed inside dispose().
-  final StreamController<int> _counterStream =
-      StreamController<int>.broadcast();
-
-  int _counter = 0;
-
-  void _increment() {
-    setState(() => _counter++);
-    _counterStream.add(_counter);
-  }
+  /// This is the intentional demo case:
+  /// leak_sniffer should warn because this controller is created and used,
+  /// but never closed inside dispose().
+  // ignore: unused_field
+  final StreamController<int> _counterStream = StreamController<int>.broadcast();
 
   @override
   void dispose() {
-    // Intentionally missing:
-    // _counterStream.close();
+    /// Intentionally missing:
+    /// _counterStream.close();
     super.dispose();
   }
 
@@ -62,11 +48,6 @@ class _StreamLeakDemoPageState extends State<StreamLeakDemoPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _increment,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Event'),
-      ),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -87,13 +68,7 @@ class _StreamLeakDemoPageState extends State<StreamLeakDemoPage> {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.86),
                       borderRadius: BorderRadius.circular(28),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x12000000),
-                          blurRadius: 30,
-                          offset: Offset(0, 16),
-                        ),
-                      ],
+                      boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 30, offset: Offset(0, 16))],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,31 +91,7 @@ class _StreamLeakDemoPageState extends State<StreamLeakDemoPage> {
                           'A StreamController receives events when you tap the button, '
                           'but dispose() intentionally forgets to close it so '
                           'avoid_unclosed_stream_controller stays visible.',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            height: 1.4,
-                            color: const Color(0xFF44615D),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _MetricCard(
-                                label: 'Counter value',
-                                value: '$_counter',
-                                icon: Icons.waves_rounded,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            const Expanded(
-                              child: _MetricCard(
-                                label: 'Lint code',
-                                value: 'avoid_unclosed_stream_controller',
-                                icon: Icons.warning_amber_rounded,
-                                compact: true,
-                              ),
-                            ),
-                          ],
+                          style: theme.textTheme.titleMedium?.copyWith(height: 1.4, color: const Color(0xFF44615D)),
                         ),
                       ],
                     ),
@@ -182,11 +133,7 @@ class _StreamLeakDemoPageState extends State<StreamLeakDemoPage> {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
+  const _Badge({required this.label, required this.background, required this.foreground});
 
   final Color background;
   final Color foreground;
@@ -196,71 +143,10 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: foreground,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.compact = false,
-  });
-
-  final bool compact;
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAF8),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE0E8E2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: const Color(0xFF0F766E)),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF59706C),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            maxLines: compact ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-            style:
-                (compact
-                        ? theme.textTheme.titleMedium
-                        : theme.textTheme.headlineMedium)
-                    ?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF163532),
-                    ),
-          ),
-        ],
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(color: foreground, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -276,27 +162,20 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.88), borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF183B37),
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: const Color(0xFF183B37)),
           ),
           const SizedBox(height: 10),
           Text(
             body,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: const Color(0xFF49635F),
-              height: 1.5,
-            ),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF49635F), height: 1.5),
           ),
         ],
       ),
@@ -316,19 +195,13 @@ class _CodeCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: const Color(0xFF163532),
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF163532), borderRadius: BorderRadius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
           ),
           const SizedBox(height: 14),
           SelectableText(

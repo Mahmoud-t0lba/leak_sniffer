@@ -14,13 +14,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Counter value'), findsOneWidget);
-    expect(find.text('0'), findsOneWidget);
-
-    await tester.tap(find.byType(FloatingActionButton));
-    await tester.pump();
-
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Active lint demo'), findsOneWidget);
+    expect(find.text('What this demo is doing'), findsOneWidget);
+    expect(find.text('Why the warning appears'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Expected fix'),

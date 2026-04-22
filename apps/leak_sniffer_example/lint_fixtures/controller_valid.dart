@@ -116,3 +116,21 @@ class CleanBlocLikeControllerOwner {
     await _events.close();
   }
 }
+
+class CleanValueNotifierOwner extends ChangeNotifier {
+  final ValueNotifier<int> _counter = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _counter.dispose();
+    super.dispose();
+  }
+}
+
+class CleanGetxLikeControllerOwner {
+  final TextEditingController _controller = TextEditingController();
+
+  void onClose() {
+    _controller.dispose();
+  }
+}
