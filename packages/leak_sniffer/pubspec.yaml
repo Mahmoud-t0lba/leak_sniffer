@@ -4,6 +4,9 @@ version: 0.1.1
 homepage: https://github.com/Mahmoud-t0lba/leak_sniffer
 repository: https://github.com/Mahmoud-t0lba/leak_sniffer
 issue_tracker: https://github.com/Mahmoud-t0lba/leak_sniffer/issues
+screenshots:
+  - description: Leak Sniffer package banner showing the resource leaks it helps detect.
+    path: screenshots/leak_sniffer.png
 topics:
   - custom-lint
   - flutter

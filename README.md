@@ -2,6 +2,8 @@
 
 Sniff out forgotten disposals before they become memory leaks.
 
+![Leak Sniffer banner](packages/leak_sniffer/screenshots/leak_sniffer.png)
+
 This repository is a production-style starter workspace for a reusable `custom_lint` package named `leak_sniffer`. It includes:
 
 - `packages/leak_sniffer`: the publishable lint package

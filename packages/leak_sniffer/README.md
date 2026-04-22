@@ -2,6 +2,8 @@
 
 Sniff out forgotten disposals before they become memory leaks.
 
+![Leak Sniffer banner](https://raw.githubusercontent.com/Mahmoud-t0lba/leak_sniffer/master/packages/leak_sniffer/screenshots/leak_sniffer.png)
+
 `leak_sniffer` is a plug-and-play lint package for Dart and Flutter that detects class-owned resources that are created but never cleaned up.
 
 ## What It Catches
