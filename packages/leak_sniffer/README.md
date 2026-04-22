@@ -36,7 +36,7 @@ Install only `leak_sniffer`:
 
 ```yaml
 dev_dependencies:
-  leak_sniffer: ^0.1.1
+  leak_sniffer: ^0.1.2
 ```
 
 Then run:

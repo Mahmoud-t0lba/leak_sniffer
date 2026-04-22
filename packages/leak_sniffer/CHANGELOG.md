@@ -1,3 +1,8 @@
+## 0.1.2
+
+- Added package screenshots metadata so the banner appears on `pub.dev`.
+- Updated the package `README` to display the published banner image.
+
 ## 0.1.1
 
 - Renamed the packaged analysis include to `package:leak_sniffer/leak_sniffer.yaml` to avoid `pub.dev`/`pana` analyzer failures caused by nested `analysis_options.yaml` files in `custom_lint` packages.

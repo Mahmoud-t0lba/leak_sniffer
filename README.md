@@ -15,7 +15,7 @@ The published package is designed to be plug-and-play for consumers:
 
 ```yaml
 dev_dependencies:
-  leak_sniffer: ^0.1.1
+  leak_sniffer: ^0.1.2
 ```
 
 ```bash
