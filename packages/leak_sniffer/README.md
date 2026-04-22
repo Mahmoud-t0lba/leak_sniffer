@@ -34,7 +34,7 @@ Install only `leak_sniffer`:
 
 ```yaml
 dev_dependencies:
-  leak_sniffer: ^0.1.0
+  leak_sniffer: ^0.1.1
 ```
 
 Then run:
@@ -60,7 +60,7 @@ dart run leak_sniffer --watch
 Manual setup still works too if you want it:
 
 ```yaml
-include: package:leak_sniffer/analysis_options.yaml
+include: package:leak_sniffer/leak_sniffer.yaml
 ```
 
 `leak_sniffer` bundles `custom_lint` internally, activates the plugin automatically, and enables all bundled rules by default. The consumer does not need to install `custom_lint`, add `analyzer.plugins`, or list rules manually.
@@ -245,7 +245,7 @@ That script runs:
 ## Implementation Notes
 
 - Built with `custom_lint`
-- Ships a ready-to-include `package:leak_sniffer/analysis_options.yaml`
+- Ships a ready-to-include `package:leak_sniffer/leak_sniffer.yaml`
 - Uses AST analysis against resolved class declarations
 - Tracks ownership through field initializers, constructor field initializers, and assignment expressions
 - Searches cleanup paths rooted in `dispose()`, `close()`, `cancel()`, and `onClose()`

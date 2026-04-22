@@ -1,1 +1,1 @@
-include: package:leak_sniffer/analysis_options.yaml
+include: package:leak_sniffer/leak_sniffer.yaml

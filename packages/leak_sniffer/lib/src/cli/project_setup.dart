@@ -4,7 +4,8 @@ import 'package:meta/meta.dart';
 import 'package:yaml/yaml.dart';
 import 'package:yaml_edit/yaml_edit.dart';
 
-const leakSnifferAnalysisInclude = 'package:leak_sniffer/analysis_options.yaml';
+const legacyLeakSnifferAnalysisInclude = 'package:leak_sniffer/analysis_options.yaml';
+const leakSnifferAnalysisInclude = 'package:leak_sniffer/leak_sniffer.yaml';
 const customLintPluginName = 'custom_lint';
 
 enum LeakSnifferAction { setupOnly, check, watch }
@@ -25,8 +26,7 @@ class LeakSnifferSetupResult {
   final bool addedCustomLintPlugin;
   final bool preservedExistingInclude;
 
-  bool get changed =>
-      createdAnalysisOptions || addedInclude || addedCustomLintPlugin;
+  bool get changed => createdAnalysisOptions || addedInclude || addedCustomLintPlugin;
 }
 
 class LeakSnifferSetupException implements Exception {
@@ -38,9 +38,7 @@ class LeakSnifferSetupException implements Exception {
   String toString() => message;
 }
 
-Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
-  Directory projectDirectory,
-) async {
+Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(Directory projectDirectory) async {
   final pubspecFile = File('${projectDirectory.path}/pubspec.yaml');
   if (!await pubspecFile.exists()) {
     throw LeakSnifferSetupException(
@@ -48,14 +46,10 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
     );
   }
 
-  final analysisOptionsFile = File(
-    '${projectDirectory.path}/analysis_options.yaml',
-  );
+  final analysisOptionsFile = File('${projectDirectory.path}/analysis_options.yaml');
 
   if (!await analysisOptionsFile.exists()) {
-    await analysisOptionsFile.writeAsString(
-      'include: $leakSnifferAnalysisInclude\n',
-    );
+    await analysisOptionsFile.writeAsString('include: $leakSnifferAnalysisInclude\n');
 
     return LeakSnifferSetupResult(
       analysisOptionsPath: analysisOptionsFile.path,
@@ -68,9 +62,7 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
 
   final originalContent = await analysisOptionsFile.readAsString();
   if (originalContent.trim().isEmpty) {
-    await analysisOptionsFile.writeAsString(
-      'include: $leakSnifferAnalysisInclude\n',
-    );
+    await analysisOptionsFile.writeAsString('include: $leakSnifferAnalysisInclude\n');
 
     return LeakSnifferSetupResult(
       analysisOptionsPath: analysisOptionsFile.path,
@@ -83,9 +75,7 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
 
   final rootNode = loadYamlNode(originalContent);
   if (rootNode is! YamlMap) {
-    throw LeakSnifferSetupException(
-      'analysis_options.yaml must contain a YAML map at the top level.',
-    );
+    throw LeakSnifferSetupException('analysis_options.yaml must contain a YAML map at the top level.');
   }
 
   final include = rootNode['include'];
@@ -93,20 +83,19 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
 
   final analyzerNode = rootNode['analyzer'];
   if (analyzerNode != null && analyzerNode is! YamlMap) {
-    throw LeakSnifferSetupException(
-      'analysis_options.yaml contains an `analyzer` section that is not a YAML map.',
-    );
+    throw LeakSnifferSetupException('analysis_options.yaml contains an `analyzer` section that is not a YAML map.');
   }
 
   final pluginsNode = analyzerNode is YamlMap ? analyzerNode['plugins'] : null;
   final plugins = _readStringList(pluginsNode, fieldName: 'analyzer.plugins');
 
   final hasLeakSnifferInclude = includeValue == leakSnifferAnalysisInclude;
+  final hasLegacyLeakSnifferInclude = includeValue == legacyLeakSnifferAnalysisInclude;
+  final hasManagedLeakSnifferInclude = hasLeakSnifferInclude || hasLegacyLeakSnifferInclude;
   final hasPluginsSection = pluginsNode != null;
   final hasCustomLintPlugin = plugins.contains(customLintPluginName);
-  final needsInclude = includeValue == null;
-  final needsCustomLintPlugin =
-      !hasCustomLintPlugin && (!hasLeakSnifferInclude || hasPluginsSection);
+  final needsInclude = includeValue == null || hasLegacyLeakSnifferInclude;
+  final needsCustomLintPlugin = !hasCustomLintPlugin && (!hasManagedLeakSnifferInclude || hasPluginsSection);
 
   if (!needsInclude && !needsCustomLintPlugin) {
     return LeakSnifferSetupResult(
@@ -114,7 +103,7 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
       createdAnalysisOptions: false,
       addedInclude: false,
       addedCustomLintPlugin: false,
-      preservedExistingInclude: includeValue != leakSnifferAnalysisInclude,
+      preservedExistingInclude: !hasManagedLeakSnifferInclude,
     );
   }
 
@@ -136,20 +125,15 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
     addedInclude: needsInclude,
     addedCustomLintPlugin: needsCustomLintPlugin,
     preservedExistingInclude:
-        includeValue != null && includeValue != leakSnifferAnalysisInclude,
+        includeValue != null &&
+        includeValue != leakSnifferAnalysisInclude &&
+        includeValue != legacyLeakSnifferAnalysisInclude,
   );
 }
 
-Future<int> runCustomLintForProject(
-  Directory projectDirectory, {
-  required LeakSnifferAction action,
-}) async {
+Future<int> runCustomLintForProject(Directory projectDirectory, {required LeakSnifferAction action}) async {
   final args = switch (action) {
-    LeakSnifferAction.setupOnly => throw ArgumentError.value(
-      action,
-      'action',
-      'setupOnly does not launch custom_lint',
-    ),
+    LeakSnifferAction.setupOnly => throw ArgumentError.value(action, 'action', 'setupOnly does not launch custom_lint'),
     LeakSnifferAction.check => const ['run', 'custom_lint'],
     LeakSnifferAction.watch => const ['run', 'custom_lint', '--watch'],
   };
@@ -172,15 +156,11 @@ List<String> _readStringList(Object? node, {required String fieldName}) {
   final values = switch (node) {
     YamlList yamlList => yamlList.nodes.map((entry) => entry.value).toList(),
     List<Object?> list => list,
-    _ => throw LeakSnifferSetupException(
-      '$fieldName must be a YAML list of strings.',
-    ),
+    _ => throw LeakSnifferSetupException('$fieldName must be a YAML list of strings.'),
   };
 
   if (values.any((entry) => entry is! String)) {
-    throw LeakSnifferSetupException(
-      '$fieldName must contain only string values.',
-    );
+    throw LeakSnifferSetupException('$fieldName must contain only string values.');
   }
 
   return values.cast<String>();

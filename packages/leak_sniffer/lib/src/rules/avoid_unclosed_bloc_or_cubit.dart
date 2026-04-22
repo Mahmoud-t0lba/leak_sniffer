@@ -13,8 +13,10 @@ class AvoidUnclosedBlocOrCubitRule extends DartLintRule {
 
   static const _code = LintCode(
     name: 'avoid_unclosed_bloc_or_cubit',
-    problemMessage: 'Bloc and Cubit fields created by a class should be closed from a lifecycle cleanup method.',
-    correctionMessage: 'Call close() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
+    problemMessage:
+        'Bloc and Cubit fields created by a class should be closed from a lifecycle cleanup method.',
+    correctionMessage:
+        'Call close() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
     errorSeverity: ErrorSeverity.WARNING,
   );
 
@@ -31,7 +33,11 @@ class AvoidUnclosedBlocOrCubitRule extends DartLintRule {
   List<Fix> getFixes() => [_fix];
 
   @override
-  void run(CustomLintResolver resolver, ErrorReporter reporter, CustomLintContext context) {
+  void run(
+    CustomLintResolver resolver,
+    ErrorReporter reporter,
+    CustomLintContext context,
+  ) {
     context.registry.addClassDeclaration((node) {
       for (final field in _resourceAnalyzer.findLeakingFields(node)) {
         reporter.atNode(field.reportNode, code);
