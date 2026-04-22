@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:yaml/yaml.dart';
@@ -7,14 +8,9 @@ import 'package:yaml_edit/yaml_edit.dart';
 const legacyLeakSnifferAnalysisInclude =
     'package:leak_sniffer/analysis_options.yaml';
 const leakSnifferAnalysisInclude = 'package:leak_sniffer/leak_sniffer.yaml';
+const leakSnifferPluginName = 'leak_sniffer';
 const customLintPluginName = 'custom_lint';
 const customLintVersionConstraint = '^0.8.1';
-const _defaultAnalysisOptionsContent =
-    'include: $leakSnifferAnalysisInclude\n'
-    '\n'
-    'analyzer:\n'
-    '  plugins:\n'
-    '    - $customLintPluginName\n';
 
 enum LeakSnifferAction { setupOnly, check, watch }
 
@@ -24,6 +20,7 @@ class LeakSnifferSetupResult {
     required this.analysisOptionsPath,
     required this.createdAnalysisOptions,
     required this.addedInclude,
+    required this.addedAnalyzerPlugin,
     required this.addedCustomLintPlugin,
     required this.addedCustomLintDependency,
     required this.preservedExistingInclude,
@@ -32,6 +29,7 @@ class LeakSnifferSetupResult {
   final String analysisOptionsPath;
   final bool createdAnalysisOptions;
   final bool addedInclude;
+  final bool addedAnalyzerPlugin;
   final bool addedCustomLintPlugin;
   final bool addedCustomLintDependency;
   final bool preservedExistingInclude;
@@ -39,6 +37,7 @@ class LeakSnifferSetupResult {
   bool get changed =>
       createdAnalysisOptions ||
       addedInclude ||
+      addedAnalyzerPlugin ||
       addedCustomLintPlugin ||
       addedCustomLintDependency;
 }
@@ -65,18 +64,24 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
   final addedCustomLintDependency = await _ensureCustomLintDependency(
     pubspecFile,
   );
+  final leakSnifferPluginPath = await _resolveLeakSnifferPluginPath(
+    projectDirectory,
+  );
 
   final analysisOptionsFile = File(
     '${projectDirectory.path}/analysis_options.yaml',
   );
 
   if (!await analysisOptionsFile.exists()) {
-    await analysisOptionsFile.writeAsString(_defaultAnalysisOptionsContent);
+    await analysisOptionsFile.writeAsString(
+      _buildDefaultAnalysisOptionsContent(leakSnifferPluginPath),
+    );
 
     return LeakSnifferSetupResult(
       analysisOptionsPath: analysisOptionsFile.path,
       createdAnalysisOptions: true,
       addedInclude: true,
+      addedAnalyzerPlugin: true,
       addedCustomLintPlugin: true,
       addedCustomLintDependency: addedCustomLintDependency,
       preservedExistingInclude: false,
@@ -85,12 +90,15 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
 
   final originalContent = await analysisOptionsFile.readAsString();
   if (originalContent.trim().isEmpty) {
-    await analysisOptionsFile.writeAsString(_defaultAnalysisOptionsContent);
+    await analysisOptionsFile.writeAsString(
+      _buildDefaultAnalysisOptionsContent(leakSnifferPluginPath),
+    );
 
     return LeakSnifferSetupResult(
       analysisOptionsPath: analysisOptionsFile.path,
       createdAnalysisOptions: false,
       addedInclude: true,
+      addedAnalyzerPlugin: true,
       addedCustomLintPlugin: true,
       addedCustomLintDependency: addedCustomLintDependency,
       preservedExistingInclude: false,
@@ -106,6 +114,12 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
 
   final include = rootNode['include'];
   final includeValue = include is String ? include : null;
+  final pluginsConfigNode = rootNode['plugins'];
+  if (pluginsConfigNode != null && pluginsConfigNode is! YamlMap) {
+    throw LeakSnifferSetupException(
+      'analysis_options.yaml contains a `plugins` section that is not a YAML map.',
+    );
+  }
 
   final analyzerNode = rootNode['analyzer'];
   if (analyzerNode != null && analyzerNode is! YamlMap) {
@@ -116,21 +130,30 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
 
   final pluginsNode = analyzerNode is YamlMap ? analyzerNode['plugins'] : null;
   final plugins = _readStringList(pluginsNode, fieldName: 'analyzer.plugins');
+  final analyzerPlugins = _readStringMap(
+    pluginsConfigNode,
+    fieldName: 'plugins',
+  );
 
   final hasLeakSnifferInclude = includeValue == leakSnifferAnalysisInclude;
   final hasLegacyLeakSnifferInclude =
       includeValue == legacyLeakSnifferAnalysisInclude;
   final hasManagedLeakSnifferInclude =
       hasLeakSnifferInclude || hasLegacyLeakSnifferInclude;
+  final hasLeakSnifferAnalyzerPlugin = analyzerPlugins.containsKey(
+    leakSnifferPluginName,
+  );
   final hasCustomLintPlugin = plugins.contains(customLintPluginName);
   final needsInclude = includeValue == null || hasLegacyLeakSnifferInclude;
+  final needsAnalyzerPlugin = !hasLeakSnifferAnalyzerPlugin;
   final needsCustomLintPlugin = !hasCustomLintPlugin;
 
-  if (!needsInclude && !needsCustomLintPlugin) {
+  if (!needsInclude && !needsAnalyzerPlugin && !needsCustomLintPlugin) {
     return LeakSnifferSetupResult(
       analysisOptionsPath: analysisOptionsFile.path,
       createdAnalysisOptions: false,
       addedInclude: false,
+      addedAnalyzerPlugin: false,
       addedCustomLintPlugin: false,
       addedCustomLintDependency: addedCustomLintDependency,
       preservedExistingInclude: !hasManagedLeakSnifferInclude,
@@ -141,6 +164,16 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
 
   if (needsInclude) {
     editor.update(['include'], leakSnifferAnalysisInclude);
+  }
+
+  if (needsAnalyzerPlugin) {
+    editor.update(
+      ['plugins'],
+      {
+        ...analyzerPlugins,
+        leakSnifferPluginName: {'path': leakSnifferPluginPath},
+      },
+    );
   }
 
   if (needsCustomLintPlugin) {
@@ -158,6 +191,7 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
     analysisOptionsPath: analysisOptionsFile.path,
     createdAnalysisOptions: false,
     addedInclude: needsInclude,
+    addedAnalyzerPlugin: needsAnalyzerPlugin,
     addedCustomLintPlugin: needsCustomLintPlugin,
     addedCustomLintDependency: addedCustomLintDependency,
     preservedExistingInclude:
@@ -200,6 +234,65 @@ Future<int> runCustomLintForProject(
   );
 
   return process.exitCode;
+}
+
+String _buildDefaultAnalysisOptionsContent(String leakSnifferPluginPath) =>
+    '''
+plugins:
+  $leakSnifferPluginName:
+    path: $leakSnifferPluginPath
+
+include: $leakSnifferAnalysisInclude
+
+analyzer:
+  plugins:
+    - $customLintPluginName
+''';
+
+Future<String> _resolveLeakSnifferPluginPath(Directory projectDirectory) async {
+  final packageConfigFile = File(
+    '${projectDirectory.path}/.dart_tool/package_config.json',
+  );
+  if (!await packageConfigFile.exists()) {
+    throw LeakSnifferSetupException(
+      'No .dart_tool/package_config.json found in ${projectDirectory.path}. Run `dart pub get` or `flutter pub get` first.',
+    );
+  }
+
+  final packageConfig =
+      jsonDecode(await packageConfigFile.readAsString())
+          as Map<String, Object?>;
+  final packages = packageConfig['packages'];
+  if (packages is! List<Object?>) {
+    throw LeakSnifferSetupException(
+      '.dart_tool/package_config.json is missing a valid `packages` list.',
+    );
+  }
+
+  for (final package in packages) {
+    if (package is! Map<String, Object?>) {
+      continue;
+    }
+
+    if (package['name'] != leakSnifferPluginName) {
+      continue;
+    }
+
+    final rootUriValue = package['rootUri'];
+    if (rootUriValue is! String) {
+      break;
+    }
+
+    final rootUri = Uri.parse(rootUriValue);
+    final resolvedUri = rootUri.isAbsolute
+        ? rootUri
+        : packageConfigFile.uri.resolve(rootUriValue);
+    return Directory.fromUri(resolvedUri).path;
+  }
+
+  throw LeakSnifferSetupException(
+    'Could not resolve the $leakSnifferPluginName package from .dart_tool/package_config.json.',
+  );
 }
 
 Future<bool> _ensureCustomLintDependency(File pubspecFile) async {
@@ -272,6 +365,44 @@ List<String> _readStringList(Object? node, {required String fieldName}) {
   }
 
   return values.cast<String>();
+}
+
+Map<String, Object?> _readStringMap(Object? node, {required String fieldName}) {
+  if (node == null) {
+    return const {};
+  }
+
+  final output = <String, Object?>{};
+  if (node case YamlMap yamlMap) {
+    for (final entry in yamlMap.nodes.entries) {
+      final key = entry.key.value;
+      if (key is! String) {
+        throw LeakSnifferSetupException(
+          '$fieldName must contain only string keys.',
+        );
+      }
+
+      output[key] = entry.value.value;
+    }
+
+    return output;
+  }
+
+  if (node case Map<Object?, Object?> map) {
+    for (final entry in map.entries) {
+      if (entry.key is! String) {
+        throw LeakSnifferSetupException(
+          '$fieldName must contain only string keys.',
+        );
+      }
+
+      output[entry.key as String] = entry.value;
+    }
+
+    return output;
+  }
+
+  throw LeakSnifferSetupException('$fieldName must be a YAML map.');
 }
 
 bool _containsMapKey(Object? node, String key, {required String fieldName}) {

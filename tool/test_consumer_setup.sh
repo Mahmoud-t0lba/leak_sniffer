@@ -56,6 +56,18 @@ EOF
     exit 1
   fi
 
+  if ! rg -n "^plugins:" "$TMP_DIR/analysis_options.yaml" >/dev/null; then
+    echo
+    echo "Expected leak_sniffer to configure the analyzer plugin for dart analyze."
+    exit 1
+  fi
+
+  if ! rg -n "leak_sniffer:" "$TMP_DIR/analysis_options.yaml" >/dev/null; then
+    echo
+    echo "Expected leak_sniffer to register itself as an analyzer plugin."
+    exit 1
+  fi
+
   if [[ "$local_output" != *"Configured leak_sniffer successfully."* ]]; then
     echo
     echo "Expected leak_sniffer to configure the consumer project automatically."
@@ -65,6 +77,15 @@ EOF
   if [[ "$local_output" != *"avoid_uncancelled_timer"* ]]; then
     echo
     echo "Expected leak_sniffer to lint the consumer project through the configured custom_lint setup."
+    exit 1
+  fi
+
+  analyze_output="$(dart analyze 2>&1 || true)"
+  printf '%s\n' "$analyze_output"
+
+  if [[ "$analyze_output" != *"avoid_uncancelled_timer"* ]]; then
+    echo
+    echo "Expected dart analyze to surface leak_sniffer diagnostics through the analyzer plugin."
     exit 1
   fi
 )

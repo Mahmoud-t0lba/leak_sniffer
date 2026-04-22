@@ -1,4 +1,5 @@
-analyzer:
-  plugins:
-    - custom_lint
+plugins:
+  leak_sniffer:
+    path: ../../packages/leak_sniffer
+
 include: package:leak_sniffer/leak_sniffer.yaml

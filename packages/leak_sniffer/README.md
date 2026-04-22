@@ -36,7 +36,7 @@ Install only `leak_sniffer`:
 
 ```yaml
 dev_dependencies:
-  leak_sniffer: ^0.1.2
+  leak_sniffer: ^0.1.3
 ```
 
 Then run:
@@ -46,7 +46,8 @@ dart run leak_sniffer
 ```
 
 That command configures `analysis_options.yaml`, adds a direct `custom_lint`
-dev dependency for IDE support, and runs `dart pub get` for you automatically.
+dev dependency for `custom_lint`, wires the `leak_sniffer` analyzer plugin for
+`dart analyze`/`flutter analyze`, and runs `dart pub get` for you automatically.
 
 If you want to configure the project and run the lints immediately:
 
@@ -67,12 +68,15 @@ In `pubspec.yaml`:
 ```yaml
 dev_dependencies:
   custom_lint: ^0.8.1
-  leak_sniffer: ^0.1.2
+  leak_sniffer: ^0.1.3
 ```
 
 In `analysis_options.yaml`:
 
 ```yaml
+plugins:
+  leak_sniffer: ^0.1.3
+
 include: package:leak_sniffer/leak_sniffer.yaml
 
 analyzer:
@@ -81,9 +85,11 @@ analyzer:
 ```
 
 `custom_lint` must be a direct dependency of the consuming project for editor
-diagnostics to show up in VS Code and Dart Analysis. `dart run leak_sniffer`
-handles that wiring for you automatically, and all bundled rules stay enabled
-by default.
+diagnostics and `dart run custom_lint` support. The top-level `plugins`
+configuration enables leak_sniffer as an analyzer plugin so the same rules also
+surface in `dart analyze`, `flutter analyze`, VS Code, and Dart Analysis.
+`dart run leak_sniffer` handles that wiring for you automatically, and all
+bundled rules stay enabled by default.
 
 For CLI and CI runs, use:
 

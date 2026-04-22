@@ -6,12 +6,10 @@ class MissingTextEditingControllerCleanupView extends StatefulWidget {
   const MissingTextEditingControllerCleanupView({super.key});
 
   @override
-  State<MissingTextEditingControllerCleanupView> createState() =>
-      _MissingTextEditingControllerCleanupViewState();
+  State<MissingTextEditingControllerCleanupView> createState() => _MissingTextEditingControllerCleanupViewState();
 }
 
-class _MissingTextEditingControllerCleanupViewState
-    extends State<MissingTextEditingControllerCleanupView> {
+class _MissingTextEditingControllerCleanupViewState extends State<MissingTextEditingControllerCleanupView> {
   // expect_lint: avoid_undisposed_controller
   final TextEditingController _controller = TextEditingController();
 
@@ -30,12 +28,10 @@ class MissingAnimationControllerCleanupView extends StatefulWidget {
   const MissingAnimationControllerCleanupView({super.key});
 
   @override
-  State<MissingAnimationControllerCleanupView> createState() =>
-      _MissingAnimationControllerCleanupViewState();
+  State<MissingAnimationControllerCleanupView> createState() => _MissingAnimationControllerCleanupViewState();
 }
 
-class _MissingAnimationControllerCleanupViewState
-    extends State<MissingAnimationControllerCleanupView>
+class _MissingAnimationControllerCleanupViewState extends State<MissingAnimationControllerCleanupView>
     with SingleTickerProviderStateMixin {
   // expect_lint: avoid_undisposed_controller
   late final AnimationController _animationController;
@@ -43,10 +39,7 @@ class _MissingAnimationControllerCleanupViewState
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
+    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
   }
 
   @override
@@ -64,12 +57,10 @@ class MissingScrollControllerCleanupView extends StatefulWidget {
   const MissingScrollControllerCleanupView({super.key});
 
   @override
-  State<MissingScrollControllerCleanupView> createState() =>
-      _MissingScrollControllerCleanupViewState();
+  State<MissingScrollControllerCleanupView> createState() => _MissingScrollControllerCleanupViewState();
 }
 
-class _MissingScrollControllerCleanupViewState
-    extends State<MissingScrollControllerCleanupView> {
+class _MissingScrollControllerCleanupViewState extends State<MissingScrollControllerCleanupView> {
   // expect_lint: avoid_undisposed_controller
   final ScrollController _scrollController = ScrollController();
 
@@ -93,12 +84,10 @@ class MissingTabControllerCleanupView extends StatefulWidget {
   const MissingTabControllerCleanupView({super.key});
 
   @override
-  State<MissingTabControllerCleanupView> createState() =>
-      _MissingTabControllerCleanupViewState();
+  State<MissingTabControllerCleanupView> createState() => _MissingTabControllerCleanupViewState();
 }
 
-class _MissingTabControllerCleanupViewState
-    extends State<MissingTabControllerCleanupView>
+class _MissingTabControllerCleanupViewState extends State<MissingTabControllerCleanupView>
     with SingleTickerProviderStateMixin {
   // expect_lint: avoid_undisposed_controller
   late final TabController _tabController;
@@ -124,12 +113,10 @@ class MissingPageControllerCleanupView extends StatefulWidget {
   const MissingPageControllerCleanupView({super.key});
 
   @override
-  State<MissingPageControllerCleanupView> createState() =>
-      _MissingPageControllerCleanupViewState();
+  State<MissingPageControllerCleanupView> createState() => _MissingPageControllerCleanupViewState();
 }
 
-class _MissingPageControllerCleanupViewState
-    extends State<MissingPageControllerCleanupView> {
+class _MissingPageControllerCleanupViewState extends State<MissingPageControllerCleanupView> {
   // expect_lint: avoid_undisposed_controller
   final PageController _pageController = PageController();
 

@@ -121,6 +121,9 @@ void _printSetupSummary(IOSink sink, LeakSnifferSetupResult result) {
   if (result.addedInclude) {
     sink.writeln('- added include: $leakSnifferAnalysisInclude');
   }
+  if (result.addedAnalyzerPlugin) {
+    sink.writeln('- enabled analyzer plugin: $leakSnifferPluginName');
+  }
   if (result.addedCustomLintPlugin) {
     sink.writeln('- enabled analyzer.plugins: [$customLintPluginName]');
   }

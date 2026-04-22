@@ -1,3 +1,10 @@
+## 0.1.3
+
+- Restored `dart analyze` and `flutter analyze` diagnostics by shipping `leak_sniffer` as a modern analyzer plugin, not only as a `custom_lint` package.
+- Restored `Show Context Actions` and quick-fix cleanup suggestions for leak diagnostics reported through the analyzer plugin.
+- Updated the setup CLI to wire both the analyzer plugin and `custom_lint` automatically in consumer projects.
+- Pinned analyzer plugin dependencies to compatible versions so consumer projects do not crash during analysis or `custom_lint` startup.
+
 ## 0.1.2
 
 - Added package screenshots metadata so the banner appears on `pub.dev`.

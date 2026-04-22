@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:leak_sniffer/src/cli/project_setup.dart';
 import 'package:test/test.dart';
@@ -13,8 +14,12 @@ void main() {
       final pubspec = await _readPubspec(project);
 
       expect(result.createdAnalysisOptions, isTrue);
+      expect(result.addedAnalyzerPlugin, isTrue);
       expect(result.addedCustomLintPlugin, isTrue);
       expect(result.addedCustomLintDependency, isTrue);
+      expect(analysisOptions, contains('plugins:'));
+      expect(analysisOptions, contains('leak_sniffer:'));
+      expect(analysisOptions, contains('path:'));
       expect(
         analysisOptions,
         contains('include: package:leak_sniffer/leak_sniffer.yaml'),
@@ -41,12 +46,14 @@ analyzer:
       final pubspec = await _readPubspec(project);
 
       expect(result.addedCustomLintPlugin, isTrue);
+      expect(result.addedAnalyzerPlugin, isTrue);
       expect(result.addedCustomLintDependency, isTrue);
       expect(result.preservedExistingInclude, isTrue);
       expect(
         analysisOptions,
         contains('include: package:flutter_lints/flutter.yaml'),
       );
+      expect(analysisOptions, contains('leak_sniffer:'));
       expect(analysisOptions, contains('plugins:'));
       expect(analysisOptions, contains('- custom_lint'));
       expect(pubspec, contains('custom_lint: ^0.8.1'));
@@ -68,12 +75,14 @@ analyzer:
       final pubspec = await _readPubspec(project);
 
       expect(result.addedCustomLintPlugin, isTrue);
+      expect(result.addedAnalyzerPlugin, isTrue);
       expect(result.addedCustomLintDependency, isTrue);
       expect(result.addedInclude, isTrue);
       expect(
         analysisOptions,
         contains('include: package:leak_sniffer/leak_sniffer.yaml'),
       );
+      expect(analysisOptions, contains('leak_sniffer:'));
       expect(analysisOptions, contains('- some_other_plugin'));
       expect(analysisOptions, contains('- custom_lint'));
       expect(pubspec, contains('custom_lint: ^0.8.1'));
@@ -92,6 +101,10 @@ dev_dependencies:
   custom_lint: ^0.8.1
 ''',
         analysisOptions: '''
+plugins:
+  leak_sniffer:
+    path: /tmp/leak_sniffer
+
 include: package:leak_sniffer/leak_sniffer.yaml
 
 analyzer:
@@ -122,8 +135,10 @@ include: package:leak_sniffer/leak_sniffer.yaml
         final pubspec = await _readPubspec(project);
 
         expect(result.addedInclude, isFalse);
+        expect(result.addedAnalyzerPlugin, isTrue);
         expect(result.addedCustomLintPlugin, isTrue);
         expect(result.addedCustomLintDependency, isTrue);
+        expect(analysisOptions, contains('leak_sniffer:'));
         expect(analysisOptions, contains('plugins:'));
         expect(analysisOptions, contains('- custom_lint'));
         expect(pubspec, contains('custom_lint: ^0.8.1'));
@@ -145,6 +160,7 @@ include: package:leak_sniffer/analysis_options.yaml
 
         expect(result.addedInclude, isTrue);
         expect(result.changed, isTrue);
+        expect(result.addedAnalyzerPlugin, isTrue);
         expect(result.addedCustomLintPlugin, isTrue);
         expect(result.addedCustomLintDependency, isTrue);
         expect(
@@ -157,6 +173,7 @@ include: package:leak_sniffer/analysis_options.yaml
           analysisOptions,
           isNot(contains('package:leak_sniffer/analysis_options.yaml')),
         );
+        expect(analysisOptions, contains('leak_sniffer:'));
         expect(pubspec, contains('custom_lint: ^0.8.1'));
       },
     );
@@ -219,6 +236,21 @@ publish_to: "none"
 environment:
   sdk: ^3.11.3
 ''',
+  );
+
+  await Directory('${directory.path}/.dart_tool').create(recursive: true);
+  await File('${directory.path}/.dart_tool/package_config.json').writeAsString(
+    jsonEncode({
+      'configVersion': 2,
+      'packages': [
+        {
+          'name': 'leak_sniffer',
+          'rootUri': Directory.current.uri.toString(),
+          'packageUri': 'lib/',
+          'languageVersion': '3.11',
+        },
+      ],
+    }),
   );
 
   if (analysisOptions != null) {
