@@ -13,9 +13,13 @@ import 'package:custom_lint_builder/custom_lint_builder.dart';
 import '../analysis/class_resource_analyzer.dart';
 
 class AddLifecycleCleanupFix extends DartFix {
-  AddLifecycleCleanupFix({required this.resourceAnalyzer});
+  AddLifecycleCleanupFix({
+    required this.resourceAnalyzer,
+    this.classResourceAnalyzer,
+  });
 
   final ClassResourceAnalyzer resourceAnalyzer;
+  final ClassResourceAnalyzer? classResourceAnalyzer;
 
   @override
   void run(
@@ -42,7 +46,7 @@ class AddLifecycleCleanupFix extends DartFix {
       final source = resolver.source.contents.data;
       final edit = _buildCleanupEdit(
         node: node,
-        trackedField: trackedField,
+        trackedFields: [trackedField],
         source: source,
         lineInfo: resolver.lineInfo,
       );
@@ -57,6 +61,37 @@ class AddLifecycleCleanupFix extends DartFix {
 
       changeBuilder.addDartFileEdit((builder) {
         builder.addSimpleInsertion(edit.offset, edit.text);
+      });
+
+      final fixAllAnalyzer = classResourceAnalyzer;
+      if (fixAllAnalyzer == null) {
+        return;
+      }
+
+      final classFields = _uniqueTrackedFields(
+        fixAllAnalyzer.findLeakingFields(node),
+      );
+      if (classFields.length < 2) {
+        return;
+      }
+
+      final fixAllEdit = _buildCleanupEdit(
+        node: node,
+        trackedFields: classFields,
+        source: source,
+        lineInfo: resolver.lineInfo,
+        messageOverride: 'Fix all missing cleanups in this class',
+      );
+      if (fixAllEdit == null) {
+        return;
+      }
+
+      final fixAllBuilder = reporter.createChangeBuilder(
+        message: fixAllEdit.message,
+        priority: 80,
+      );
+      fixAllBuilder.addDartFileEdit((builder) {
+        builder.addSimpleInsertion(fixAllEdit.offset, fixAllEdit.text);
       });
     });
   }
@@ -92,7 +127,7 @@ class AddLifecycleCleanupAssist extends DartAssist {
       final source = resolver.source.contents.data;
       final edit = _buildCleanupEdit(
         node: node,
-        trackedField: trackedField,
+        trackedFields: [trackedField],
         source: source,
         lineInfo: resolver.lineInfo,
       );
@@ -103,6 +138,54 @@ class AddLifecycleCleanupAssist extends DartAssist {
       final changeBuilder = reporter.createChangeBuilder(
         message: edit.message,
         priority: 70,
+      );
+
+      changeBuilder.addDartFileEdit((builder) {
+        builder.addSimpleInsertion(edit.offset, edit.text);
+      });
+    });
+  }
+}
+
+class AddAllLifecycleCleanupAssist extends DartAssist {
+  AddAllLifecycleCleanupAssist({required this.resourceAnalyzer});
+
+  final ClassResourceAnalyzer resourceAnalyzer;
+
+  @override
+  void run(
+    CustomLintResolver resolver,
+    ChangeReporter reporter,
+    CustomLintContext context,
+    SourceRange target,
+  ) {
+    context.registry.addClassDeclaration((node) {
+      if (!_intersectsTarget(node, target)) {
+        return;
+      }
+
+      final trackedFields = _uniqueTrackedFields(
+        resourceAnalyzer.findLeakingFields(node),
+      );
+      if (trackedFields.length < 2) {
+        return;
+      }
+
+      final source = resolver.source.contents.data;
+      final edit = _buildCleanupEdit(
+        node: node,
+        trackedFields: trackedFields,
+        source: source,
+        lineInfo: resolver.lineInfo,
+        messageOverride: 'Fix all missing cleanups in this class',
+      );
+      if (edit == null) {
+        return;
+      }
+
+      final changeBuilder = reporter.createChangeBuilder(
+        message: edit.message,
+        priority: 60,
       );
 
       changeBuilder.addDartFileEdit((builder) {
@@ -158,44 +241,61 @@ TrackedField? _fieldForTarget(
   return null;
 }
 
+List<TrackedField> _uniqueTrackedFields(Iterable<TrackedField> trackedFields) {
+  final fieldsByName = <String, TrackedField>{};
+  for (final trackedField in trackedFields) {
+    fieldsByName.putIfAbsent(trackedField.name, () => trackedField);
+  }
+
+  final uniqueFields = fieldsByName.values.toList()
+    ..sort((a, b) => a.variable.offset.compareTo(b.variable.offset));
+  return uniqueFields;
+}
+
 _CleanupEdit? _buildCleanupEdit({
   required ClassDeclaration node,
-  required TrackedField trackedField,
+  required List<TrackedField> trackedFields,
   required String source,
   required LineInfo lineInfo,
+  String? messageOverride,
 }) {
+  if (trackedFields.isEmpty) {
+    return null;
+  }
+
   final lifecycleTemplate = _inferLifecycleTemplate(node);
   final targetMethod = _pickTargetMethod(node, lifecycleTemplate.methodName);
 
   return targetMethod == null
       ? _buildCreateLifecycleMethodEdit(
           node: node,
-          trackedField: trackedField,
+          trackedFields: trackedFields,
           lifecycleTemplate: lifecycleTemplate,
           source: source,
           lineInfo: lineInfo,
+          messageOverride: messageOverride,
         )
       : _buildInsertCleanupCallEdit(
           method: targetMethod,
-          trackedField: trackedField,
+          trackedFields: trackedFields,
           source: source,
           lineInfo: lineInfo,
+          messageOverride: messageOverride,
         );
 }
 
 _CleanupEdit? _buildInsertCleanupCallEdit({
   required MethodDeclaration method,
-  required TrackedField trackedField,
+  required List<TrackedField> trackedFields,
   required String source,
   required LineInfo lineInfo,
+  String? messageOverride,
 }) {
   final body = method.body;
   if (body is! BlockFunctionBody) {
     return null;
   }
 
-  final cleanupCall =
-      '${trackedField.name}.${trackedField.spec.cleanupMethodName}();';
   final methodIndent = _indentOfOffset(source, lineInfo, method.offset);
   final statementIndent = _statementIndent(
     body,
@@ -203,6 +303,8 @@ _CleanupEdit? _buildInsertCleanupCallEdit({
     lineInfo,
     methodIndent,
   );
+  final cleanupLines = _cleanupLines(trackedFields);
+  final cleanupBlock = cleanupLines.join('\n$statementIndent');
   final insertionPoint = _statementInsertionOffset(
     body: body,
     source: source,
@@ -211,13 +313,17 @@ _CleanupEdit? _buildInsertCleanupCallEdit({
   );
 
   final text = insertionPoint.beforeExistingStatement
-      ? '$statementIndent$cleanupCall\n'
+      ? '$statementIndent$cleanupBlock\n'
       : insertionPoint.isSingleLineBody
-      ? '\n$statementIndent$cleanupCall\n$methodIndent'
-      : '$statementIndent$cleanupCall\n';
+      ? '\n$statementIndent$cleanupBlock\n$methodIndent'
+      : '$statementIndent$cleanupBlock\n';
 
   return _CleanupEdit(
-    message: 'Add $cleanupCall to ${method.name.lexeme}()',
+    message:
+        messageOverride ??
+        (trackedFields.length == 1
+            ? 'Add ${cleanupLines.single.trim()} to ${method.name.lexeme}()'
+            : 'Add cleanup calls to ${method.name.lexeme}()'),
     offset: insertionPoint.offset,
     text: text,
   );
@@ -225,16 +331,17 @@ _CleanupEdit? _buildInsertCleanupCallEdit({
 
 _CleanupEdit _buildCreateLifecycleMethodEdit({
   required ClassDeclaration node,
-  required TrackedField trackedField,
+  required List<TrackedField> trackedFields,
   required _LifecycleTemplate lifecycleTemplate,
   required String source,
   required LineInfo lineInfo,
+  String? messageOverride,
 }) {
-  final cleanupCall =
-      '${trackedField.name}.${trackedField.spec.cleanupMethodName}();';
   final classIndent = _indentOfOffset(source, lineInfo, node.offset);
   final memberIndent = _memberIndent(node, source, lineInfo, classIndent);
   final statementIndent = '$memberIndent  ';
+  final cleanupLines = _cleanupLines(trackedFields);
+  final cleanupBlock = cleanupLines.join('\n$statementIndent');
   final openingLine = node.members.isEmpty ? '' : '\n';
   final overrideAnnotation = lifecycleTemplate.addOverride
       ? '$memberIndent@override\n'
@@ -246,7 +353,7 @@ _CleanupEdit _buildCreateLifecycleMethodEdit({
   final methodText =
       '$overrideAnnotation'
       '$memberIndent${lifecycleTemplate.signature} {\n'
-      '$statementIndent$cleanupCall'
+      '$statementIndent$cleanupBlock'
       '$superLine\n'
       '$memberIndent}\n';
 
@@ -265,10 +372,23 @@ _CleanupEdit _buildCreateLifecycleMethodEdit({
       : '$openingLine$methodText';
 
   return _CleanupEdit(
-    message: 'Create ${lifecycleTemplate.methodName}() and call $cleanupCall',
+    message:
+        messageOverride ??
+        (trackedFields.length == 1
+            ? 'Create ${lifecycleTemplate.methodName}() and call ${cleanupLines.single.trim()}'
+            : 'Create ${lifecycleTemplate.methodName}() and cleanup resources'),
     offset: insertionOffset,
     text: text,
   );
+}
+
+List<String> _cleanupLines(List<TrackedField> trackedFields) {
+  return trackedFields
+      .map(
+        (trackedField) =>
+            '${trackedField.name}.${trackedField.spec.cleanupMethodName}();',
+      )
+      .toList(growable: false);
 }
 
 MethodDeclaration? _pickTargetMethod(

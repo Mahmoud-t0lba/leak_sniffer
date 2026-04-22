@@ -86,6 +86,8 @@ When `leak_sniffer` reports a resource leak, the editor `Quick Fix` and `Show Co
 
 The fix will try to reuse an existing lifecycle method such as `dispose()`, `close()`, or `onClose()`. If no suitable lifecycle method exists, it can create one for common owners such as `State`, `Cubit`/`Bloc`, `ChangeNotifier`, and GetX-style controllers.
 
+When multiple resources in the same class are leaking, `Show Context Actions` can also offer a class-level cleanup action to fix all missing cleanups in that class at once.
+
 ## Usage Examples
 
 ### StreamController

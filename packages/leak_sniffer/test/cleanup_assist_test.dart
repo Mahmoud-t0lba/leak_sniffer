@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:analyzer/source/source_range.dart';
 import 'package:analyzer_plugin/protocol/protocol_common.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
+import 'package:leak_sniffer/src/analysis/leak_resource_analyzers.dart';
 import 'package:leak_sniffer/src/fixes/add_lifecycle_cleanup_fix.dart';
 import 'package:leak_sniffer/src/rules/avoid_unclosed_bloc_or_cubit.dart';
 import 'package:leak_sniffer/src/rules/avoid_unclosed_stream_controller.dart';
@@ -78,6 +79,24 @@ void main() {
         );
         expect(result.output, contains('_controller.dispose();'));
         expect(result.output, contains('void onClose() {'));
+      },
+    );
+
+    test(
+      'offers a fix-all context action for all leaking resources in a class',
+      () async {
+        final result = await _runAssist(
+          AddAllLifecycleCleanupAssist(
+            resourceAnalyzer: allLeakSnifferResourceAnalyzer,
+          ),
+          _fixtureFile('multi_resource_fix_all.dart'),
+          'DashboardState',
+        );
+
+        expect(result.message, 'Fix all missing cleanups in this class');
+        expect(result.output, contains('_timer.cancel();'));
+        expect(result.output, contains('_controller.dispose();'));
+        expect(result.output, contains('_subscription.cancel();'));
       },
     );
   });

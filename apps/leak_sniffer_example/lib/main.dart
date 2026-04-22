@@ -30,9 +30,10 @@ class StreamLeakDemoPage extends StatefulWidget {
 }
 
 class _StreamLeakDemoPageState extends State<StreamLeakDemoPage> {
-  /// This is the intentional demo case:
-  /// leak_sniffer should warn because this controller is created and used,
-  /// but never closed inside dispose().
+  // This is the intentional demo case:
+  // leak_sniffer should warn because this controller is created and used,
+  // but never closed inside dispose().
+
   // ignore: unused_field
   final StreamController<int> _counterStream = StreamController<int>.broadcast();
 

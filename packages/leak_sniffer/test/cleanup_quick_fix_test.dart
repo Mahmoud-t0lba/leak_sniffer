@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:analyzer_plugin/protocol/protocol_common.dart';
+import 'package:analyzer_plugin/protocol/protocol_generated.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 import 'package:leak_sniffer/src/rules/avoid_unclosed_bloc_or_cubit.dart';
 import 'package:leak_sniffer/src/rules/avoid_unclosed_stream_controller.dart';
@@ -137,6 +138,45 @@ void main() {
         );
       },
     );
+
+    test(
+      'offers a fix-all cleanup action for all leaking resources in a class',
+      () async {
+        final file = _fixtureFile('multi_resource_fix_all.dart');
+        const rule = AvoidUncancelledTimerRule();
+
+        final errors = await rule.testAnalyzeAndRun(file);
+        expect(errors, hasLength(1));
+
+        final fix = rule.getFixes().single as DartFix;
+        final changes = await fix.testAnalyzeAndRun(
+          file,
+          errors.single,
+          errors,
+        );
+
+        final fixAllResult = _applyChange(
+          file,
+          changes.singleWhere(
+            (change) =>
+                change.change.message ==
+                'Fix all missing cleanups in this class',
+          ),
+        );
+
+        expect(
+          fixAllResult.output,
+          contains(
+            'void dispose() {\n'
+            '    _timer.cancel();\n'
+            '    _controller.dispose();\n'
+            '    _subscription.cancel();\n'
+            '    super.dispose();\n'
+            '  }',
+          ),
+        );
+      },
+    );
   });
 }
 
@@ -148,14 +188,7 @@ Future<_FixResult> _runSingleFix(DartLintRule rule, File file) async {
   final changes = await fix.testAnalyzeAndRun(file, errors.single, errors);
   expect(changes, hasLength(1));
 
-  final change = changes.single.change;
-  final fileEdit = change.edits.singleWhere((edit) => edit.file == file.path);
-  final output = SourceEdit.applySequence(
-    file.readAsStringSync(),
-    fileEdit.edits,
-  );
-
-  return _FixResult(message: change.message, output: output);
+  return _applyChange(file, changes.single);
 }
 
 File _fixtureFile(String name) {
@@ -167,4 +200,17 @@ class _FixResult {
 
   final String message;
   final String output;
+}
+
+_FixResult _applyChange(File file, PrioritizedSourceChange change) {
+  final sourceChange = change.change;
+  final fileEdit = sourceChange.edits.singleWhere(
+    (edit) => edit.file == file.path,
+  );
+  final output = SourceEdit.applySequence(
+    file.readAsStringSync(),
+    fileEdit.edits,
+  );
+
+  return _FixResult(message: sourceChange.message, output: output);
 }

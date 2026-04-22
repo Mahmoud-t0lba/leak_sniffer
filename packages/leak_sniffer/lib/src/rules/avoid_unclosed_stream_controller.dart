@@ -5,7 +5,7 @@ import 'package:analyzer/error/listener.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
 import '../analysis/class_resource_analyzer.dart';
-import '../analysis/resource_spec.dart';
+import '../analysis/leak_resource_analyzers.dart';
 import '../fixes/add_lifecycle_cleanup_fix.dart';
 
 class AvoidUnclosedStreamControllerRule extends DartLintRule {
@@ -20,24 +20,11 @@ class AvoidUnclosedStreamControllerRule extends DartLintRule {
     errorSeverity: ErrorSeverity.WARNING,
   );
 
-  static const _resourceAnalyzer = ClassResourceAnalyzer(
-    specs: [
-      ResourceSpec(
-        debugName: 'StreamController',
-        typeChecker: TypeChecker.fromUrl('dart:async#StreamController'),
-        cleanupAction: CleanupAction.close,
-      ),
-      ResourceSpec(
-        debugName: 'Subject',
-        typeNames: ['Subject'],
-        typeNameSuffixes: ['Subject'],
-        cleanupAction: CleanupAction.close,
-      ),
-    ],
-  );
+  static const _resourceAnalyzer = streamControllerResourceAnalyzer;
 
   static final _fix = AddLifecycleCleanupFix(
     resourceAnalyzer: _resourceAnalyzer,
+    classResourceAnalyzer: allLeakSnifferResourceAnalyzer,
   );
 
   static ClassResourceAnalyzer get resourceAnalyzer => _resourceAnalyzer;

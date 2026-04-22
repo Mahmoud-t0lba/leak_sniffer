@@ -5,7 +5,7 @@ import 'package:analyzer/error/listener.dart';
 import 'package:custom_lint_builder/custom_lint_builder.dart';
 
 import '../analysis/class_resource_analyzer.dart';
-import '../analysis/resource_spec.dart';
+import '../analysis/leak_resource_analyzers.dart';
 import '../fixes/add_lifecycle_cleanup_fix.dart';
 
 class AvoidUncancelledStreamSubscriptionRule extends DartLintRule {
@@ -13,25 +13,16 @@ class AvoidUncancelledStreamSubscriptionRule extends DartLintRule {
 
   static const _code = LintCode(
     name: 'avoid_uncancelled_stream_subscription',
-    problemMessage:
-        'StreamSubscription fields created by a class should be cancelled from a lifecycle cleanup method.',
-    correctionMessage:
-        'Call cancel() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
+    problemMessage: 'StreamSubscription fields created by a class should be cancelled from a lifecycle cleanup method.',
+    correctionMessage: 'Call cancel() from a lifecycle method such as dispose(), close(), cancel(), or onClose().',
     errorSeverity: ErrorSeverity.WARNING,
   );
 
-  static const _resourceSpec = ResourceSpec(
-    debugName: 'StreamSubscription',
-    typeChecker: TypeChecker.fromUrl('dart:async#StreamSubscription'),
-    cleanupAction: CleanupAction.cancel,
-  );
-
-  static const _resourceAnalyzer = ClassResourceAnalyzer(
-    specs: [_resourceSpec],
-  );
+  static const _resourceAnalyzer = streamSubscriptionResourceAnalyzer;
 
   static final _fix = AddLifecycleCleanupFix(
     resourceAnalyzer: _resourceAnalyzer,
+    classResourceAnalyzer: allLeakSnifferResourceAnalyzer,
   );
 
   static ClassResourceAnalyzer get resourceAnalyzer => _resourceAnalyzer;
@@ -40,11 +31,7 @@ class AvoidUncancelledStreamSubscriptionRule extends DartLintRule {
   List<Fix> getFixes() => [_fix];
 
   @override
-  void run(
-    CustomLintResolver resolver,
-    ErrorReporter reporter,
-    CustomLintContext context,
-  ) {
+  void run(CustomLintResolver resolver, ErrorReporter reporter, CustomLintContext context) {
     context.registry.addClassDeclaration((node) {
       for (final field in _resourceAnalyzer.findLeakingFields(node)) {
         reporter.atNode(field.reportNode, code);
