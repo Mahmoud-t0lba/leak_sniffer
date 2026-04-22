@@ -8,6 +8,7 @@ const legacyLeakSnifferAnalysisInclude =
     'package:leak_sniffer/analysis_options.yaml';
 const leakSnifferAnalysisInclude = 'package:leak_sniffer/leak_sniffer.yaml';
 const customLintPluginName = 'custom_lint';
+const customLintVersionConstraint = '^0.8.1';
 const _defaultAnalysisOptionsContent =
     'include: $leakSnifferAnalysisInclude\n'
     '\n'
@@ -24,6 +25,7 @@ class LeakSnifferSetupResult {
     required this.createdAnalysisOptions,
     required this.addedInclude,
     required this.addedCustomLintPlugin,
+    required this.addedCustomLintDependency,
     required this.preservedExistingInclude,
   });
 
@@ -31,10 +33,14 @@ class LeakSnifferSetupResult {
   final bool createdAnalysisOptions;
   final bool addedInclude;
   final bool addedCustomLintPlugin;
+  final bool addedCustomLintDependency;
   final bool preservedExistingInclude;
 
   bool get changed =>
-      createdAnalysisOptions || addedInclude || addedCustomLintPlugin;
+      createdAnalysisOptions ||
+      addedInclude ||
+      addedCustomLintPlugin ||
+      addedCustomLintDependency;
 }
 
 class LeakSnifferSetupException implements Exception {
@@ -56,6 +62,10 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
     );
   }
 
+  final addedCustomLintDependency = await _ensureCustomLintDependency(
+    pubspecFile,
+  );
+
   final analysisOptionsFile = File(
     '${projectDirectory.path}/analysis_options.yaml',
   );
@@ -68,6 +78,7 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
       createdAnalysisOptions: true,
       addedInclude: true,
       addedCustomLintPlugin: true,
+      addedCustomLintDependency: addedCustomLintDependency,
       preservedExistingInclude: false,
     );
   }
@@ -81,6 +92,7 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
       createdAnalysisOptions: false,
       addedInclude: true,
       addedCustomLintPlugin: true,
+      addedCustomLintDependency: addedCustomLintDependency,
       preservedExistingInclude: false,
     );
   }
@@ -120,6 +132,7 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
       createdAnalysisOptions: false,
       addedInclude: false,
       addedCustomLintPlugin: false,
+      addedCustomLintDependency: addedCustomLintDependency,
       preservedExistingInclude: !hasManagedLeakSnifferInclude,
     );
   }
@@ -146,11 +159,23 @@ Future<LeakSnifferSetupResult> ensureLeakSnifferConfigured(
     createdAnalysisOptions: false,
     addedInclude: needsInclude,
     addedCustomLintPlugin: needsCustomLintPlugin,
+    addedCustomLintDependency: addedCustomLintDependency,
     preservedExistingInclude:
         includeValue != null &&
         includeValue != leakSnifferAnalysisInclude &&
         includeValue != legacyLeakSnifferAnalysisInclude,
   );
+}
+
+Future<int> runPubGetForProject(Directory projectDirectory) async {
+  final process = await Process.start(
+    Platform.resolvedExecutable,
+    const ['pub', 'get'],
+    workingDirectory: projectDirectory.path,
+    mode: ProcessStartMode.inheritStdio,
+  );
+
+  return process.exitCode;
 }
 
 Future<int> runCustomLintForProject(
@@ -177,6 +202,56 @@ Future<int> runCustomLintForProject(
   return process.exitCode;
 }
 
+Future<bool> _ensureCustomLintDependency(File pubspecFile) async {
+  final originalContent = await pubspecFile.readAsString();
+  if (originalContent.trim().isEmpty) {
+    throw LeakSnifferSetupException(
+      'pubspec.yaml must contain a YAML map at the top level.',
+    );
+  }
+
+  final rootNode = loadYamlNode(originalContent);
+  if (rootNode is! YamlMap) {
+    throw LeakSnifferSetupException(
+      'pubspec.yaml must contain a YAML map at the top level.',
+    );
+  }
+
+  final hasCustomLintDependency =
+      _containsMapKey(
+        rootNode['dependencies'],
+        customLintPluginName,
+        fieldName: 'dependencies',
+      ) ||
+      _containsMapKey(
+        rootNode['dev_dependencies'],
+        customLintPluginName,
+        fieldName: 'dev_dependencies',
+      );
+
+  if (hasCustomLintDependency) {
+    return false;
+  }
+
+  final editor = YamlEditor(originalContent);
+  final devDependenciesNode = rootNode['dev_dependencies'];
+
+  if (devDependenciesNode == null) {
+    editor.update(
+      ['dev_dependencies'],
+      {customLintPluginName: customLintVersionConstraint},
+    );
+  } else {
+    editor.update([
+      'dev_dependencies',
+      customLintPluginName,
+    ], customLintVersionConstraint);
+  }
+
+  await pubspecFile.writeAsString(editor.toString());
+  return true;
+}
+
 List<String> _readStringList(Object? node, {required String fieldName}) {
   if (node == null) {
     return const [];
@@ -197,4 +272,16 @@ List<String> _readStringList(Object? node, {required String fieldName}) {
   }
 
   return values.cast<String>();
+}
+
+bool _containsMapKey(Object? node, String key, {required String fieldName}) {
+  if (node == null) {
+    return false;
+  }
+
+  return switch (node) {
+    YamlMap yamlMap => yamlMap.containsKey(key),
+    Map<Object?, Object?> map => map.containsKey(key),
+    _ => throw LeakSnifferSetupException('$fieldName must be a YAML map.'),
+  };
 }

@@ -10,15 +10,19 @@ void main() {
 
       final result = await ensureLeakSnifferConfigured(project);
       final analysisOptions = await _readAnalysisOptions(project);
+      final pubspec = await _readPubspec(project);
 
       expect(result.createdAnalysisOptions, isTrue);
       expect(result.addedCustomLintPlugin, isTrue);
+      expect(result.addedCustomLintDependency, isTrue);
       expect(
         analysisOptions,
         contains('include: package:leak_sniffer/leak_sniffer.yaml'),
       );
       expect(analysisOptions, contains('plugins:'));
       expect(analysisOptions, contains('- custom_lint'));
+      expect(pubspec, contains('dev_dependencies:'));
+      expect(pubspec, contains('custom_lint: ^0.8.1'));
     });
 
     test('preserves an existing include and adds custom_lint plugin', () async {
@@ -34,8 +38,10 @@ analyzer:
 
       final result = await ensureLeakSnifferConfigured(project);
       final analysisOptions = await _readAnalysisOptions(project);
+      final pubspec = await _readPubspec(project);
 
       expect(result.addedCustomLintPlugin, isTrue);
+      expect(result.addedCustomLintDependency, isTrue);
       expect(result.preservedExistingInclude, isTrue);
       expect(
         analysisOptions,
@@ -43,6 +49,7 @@ analyzer:
       );
       expect(analysisOptions, contains('plugins:'));
       expect(analysisOptions, contains('- custom_lint'));
+      expect(pubspec, contains('custom_lint: ^0.8.1'));
     });
 
     test('adds custom_lint to an existing analyzer plugins list', () async {
@@ -58,8 +65,10 @@ analyzer:
 
       final result = await ensureLeakSnifferConfigured(project);
       final analysisOptions = await _readAnalysisOptions(project);
+      final pubspec = await _readPubspec(project);
 
       expect(result.addedCustomLintPlugin, isTrue);
+      expect(result.addedCustomLintDependency, isTrue);
       expect(result.addedInclude, isTrue);
       expect(
         analysisOptions,
@@ -67,10 +76,21 @@ analyzer:
       );
       expect(analysisOptions, contains('- some_other_plugin'));
       expect(analysisOptions, contains('- custom_lint'));
+      expect(pubspec, contains('custom_lint: ^0.8.1'));
     });
 
     test('is a no-op when leak_sniffer is already configured', () async {
       final project = await _createProject(
+        pubspec: '''
+name: sample_project
+publish_to: "none"
+
+environment:
+  sdk: ^3.11.3
+
+dev_dependencies:
+  custom_lint: ^0.8.1
+''',
         analysisOptions: '''
 include: package:leak_sniffer/leak_sniffer.yaml
 
@@ -99,11 +119,14 @@ include: package:leak_sniffer/leak_sniffer.yaml
 
         final result = await ensureLeakSnifferConfigured(project);
         final analysisOptions = await _readAnalysisOptions(project);
+        final pubspec = await _readPubspec(project);
 
         expect(result.addedInclude, isFalse);
         expect(result.addedCustomLintPlugin, isTrue);
+        expect(result.addedCustomLintDependency, isTrue);
         expect(analysisOptions, contains('plugins:'));
         expect(analysisOptions, contains('- custom_lint'));
+        expect(pubspec, contains('custom_lint: ^0.8.1'));
       },
     );
 
@@ -118,10 +141,12 @@ include: package:leak_sniffer/analysis_options.yaml
 
         final result = await ensureLeakSnifferConfigured(project);
         final analysisOptions = await _readAnalysisOptions(project);
+        final pubspec = await _readPubspec(project);
 
         expect(result.addedInclude, isTrue);
         expect(result.changed, isTrue);
         expect(result.addedCustomLintPlugin, isTrue);
+        expect(result.addedCustomLintDependency, isTrue);
         expect(
           analysisOptions,
           contains('include: package:leak_sniffer/leak_sniffer.yaml'),
@@ -132,23 +157,69 @@ include: package:leak_sniffer/analysis_options.yaml
           analysisOptions,
           isNot(contains('package:leak_sniffer/analysis_options.yaml')),
         );
+        expect(pubspec, contains('custom_lint: ^0.8.1'));
       },
     );
-  });
-}
 
-Future<Directory> _createProject({String? analysisOptions}) async {
-  final directory = await Directory.systemTemp.createTemp(
-    'leak_sniffer_project_setup_test_',
-  );
-
-  await File('${directory.path}/pubspec.yaml').writeAsString('''
+    test('does not duplicate a direct custom_lint dependency', () async {
+      final project = await _createProject(
+        pubspec: '''
 name: sample_project
 publish_to: "none"
 
 environment:
   sdk: ^3.11.3
-''');
+
+dev_dependencies:
+  custom_lint: ^0.8.1
+''',
+      );
+
+      final result = await ensureLeakSnifferConfigured(project);
+      final pubspec = await _readPubspec(project);
+
+      expect(result.addedCustomLintDependency, isFalse);
+      expect(
+        RegExp(r'custom_lint: \^0\.8\.1').allMatches(pubspec),
+        hasLength(1),
+      );
+    });
+
+    test(
+      'keeps the legacy packaged include available for old projects',
+      () async {
+        final legacyInclude = File(
+          '${Directory.current.path}/lib/analysis_options.yaml',
+        );
+
+        expect(await legacyInclude.exists(), isTrue);
+        expect(
+          await legacyInclude.readAsString(),
+          contains('include: package:leak_sniffer/leak_sniffer.yaml'),
+        );
+      },
+    );
+  });
+}
+
+Future<Directory> _createProject({
+  String? analysisOptions,
+  String? pubspec,
+}) async {
+  final directory = await Directory.systemTemp.createTemp(
+    'leak_sniffer_project_setup_test_',
+  );
+
+  await File('${directory.path}/pubspec.yaml').writeAsString(
+    pubspec ??
+        '''
+name: sample_project
+publish_to: "none"
+
+environment:
+  sdk: ^3.11.3
+''',
+  );
 
   if (analysisOptions != null) {
     await File(
@@ -167,4 +238,8 @@ environment:
 
 Future<String> _readAnalysisOptions(Directory project) {
   return File('${project.path}/analysis_options.yaml').readAsString();
+}
+
+Future<String> _readPubspec(Directory project) {
+  return File('${project.path}/pubspec.yaml').readAsString();
 }

@@ -72,6 +72,18 @@ Future<int> runLeakSnifferCli(
     final result = await ensureLeakSnifferConfigured(projectDirectory);
     _printSetupSummary(out, result);
 
+    if (result.addedCustomLintDependency) {
+      out.writeln();
+      out.writeln(
+        'Running `dart pub get` so the IDE can load custom_lint diagnostics...',
+      );
+
+      final pubGetExitCode = await runPubGetForProject(projectDirectory);
+      if (pubGetExitCode != 0) {
+        return pubGetExitCode;
+      }
+    }
+
     if (action == LeakSnifferAction.setupOnly) {
       out.writeln();
       out.writeln(
@@ -111,6 +123,11 @@ void _printSetupSummary(IOSink sink, LeakSnifferSetupResult result) {
   }
   if (result.addedCustomLintPlugin) {
     sink.writeln('- enabled analyzer.plugins: [$customLintPluginName]');
+  }
+  if (result.addedCustomLintDependency) {
+    sink.writeln(
+      '- added dev_dependencies: {$customLintPluginName: $customLintVersionConstraint}',
+    );
   }
   if (result.preservedExistingInclude) {
     sink.writeln(

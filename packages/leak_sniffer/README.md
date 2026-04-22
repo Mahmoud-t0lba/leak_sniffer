@@ -45,7 +45,8 @@ Then run:
 dart run leak_sniffer
 ```
 
-That command configures `analysis_options.yaml` for you automatically.
+That command configures `analysis_options.yaml`, adds a direct `custom_lint`
+dev dependency for IDE support, and runs `dart pub get` for you automatically.
 
 If you want to configure the project and run the lints immediately:
 
@@ -61,11 +62,28 @@ dart run leak_sniffer --watch
 
 Manual setup still works too if you want it:
 
+In `pubspec.yaml`:
+
 ```yaml
-include: package:leak_sniffer/leak_sniffer.yaml
+dev_dependencies:
+  custom_lint: ^0.8.1
+  leak_sniffer: ^0.1.2
 ```
 
-`leak_sniffer` bundles `custom_lint` internally, activates the plugin automatically, and enables all bundled rules by default. The consumer does not need to install `custom_lint`, add `analyzer.plugins`, or list rules manually.
+In `analysis_options.yaml`:
+
+```yaml
+include: package:leak_sniffer/leak_sniffer.yaml
+
+analyzer:
+  plugins:
+    - custom_lint
+```
+
+`custom_lint` must be a direct dependency of the consuming project for editor
+diagnostics to show up in VS Code and Dart Analysis. `dart run leak_sniffer`
+handles that wiring for you automatically, and all bundled rules stay enabled
+by default.
 
 For CLI and CI runs, use:
 
@@ -73,7 +91,8 @@ For CLI and CI runs, use:
 dart run leak_sniffer --check
 ```
 
-Under the hood, this runs `custom_lint`, but the consumer does not need to depend on it directly.
+Under the hood, this runs `custom_lint` after the setup command has ensured the
+consumer project depends on it directly.
 
 If the project already has an `analysis_options.yaml`, `dart run leak_sniffer` keeps your existing include/config where possible and layers `custom_lint` into it automatically.
 
@@ -247,6 +266,7 @@ That script runs:
 ## Implementation Notes
 
 - Built with `custom_lint`
+- Keeps the legacy `package:leak_sniffer/analysis_options.yaml` include working for older consumers
 - Ships a ready-to-include `package:leak_sniffer/leak_sniffer.yaml`
 - Uses AST analysis against resolved class declarations
 - Tracks ownership through field initializers, constructor field initializers, and assignment expressions

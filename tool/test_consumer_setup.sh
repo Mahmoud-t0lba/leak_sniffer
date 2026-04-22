@@ -44,6 +44,18 @@ EOF
     exit 1
   fi
 
+  if ! rg -n "^  custom_lint: \\^0\\.8\\.1$" "$TMP_DIR/pubspec.yaml" >/dev/null; then
+    echo
+    echo "Expected leak_sniffer to add custom_lint as a direct dev dependency for IDE diagnostics."
+    exit 1
+  fi
+
+  if ! rg -n "custom_lint" "$TMP_DIR/analysis_options.yaml" >/dev/null; then
+    echo
+    echo "Expected leak_sniffer to enable the custom_lint analyzer plugin in analysis_options.yaml."
+    exit 1
+  fi
+
   if [[ "$local_output" != *"Configured leak_sniffer successfully."* ]]; then
     echo
     echo "Expected leak_sniffer to configure the consumer project automatically."
@@ -52,7 +64,7 @@ EOF
 
   if [[ "$local_output" != *"avoid_uncancelled_timer"* ]]; then
     echo
-    echo "Expected leak_sniffer to lint the consumer project through the bundled custom_lint setup."
+    echo "Expected leak_sniffer to lint the consumer project through the configured custom_lint setup."
     exit 1
   fi
 )
