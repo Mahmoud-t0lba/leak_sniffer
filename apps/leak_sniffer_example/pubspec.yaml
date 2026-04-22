@@ -1,0 +1,23 @@
+name: leak_sniffer_example
+description: Example Flutter application for the leak_sniffer custom lint workspace.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.9
+
+dev_dependencies:
+  custom_lint: ^0.8.1
+  leak_sniffer:
+    path: ../../packages/leak_sniffer
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

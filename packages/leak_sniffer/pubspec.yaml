@@ -1,0 +1,23 @@
+name: leak_sniffer
+description: A custom lint package for Dart & Flutter that detects unclosed, uncancelled, and undisposed resources to help prevent memory leaks.
+version: 0.1.0
+topics:
+  - custom-lint
+  - flutter
+  - static-analysis
+  - memory-leaks
+
+environment:
+  sdk: ^3.11.3
+
+dependencies:
+  analyzer: ^8.4.0
+  analyzer_plugin: ^0.13.10
+  collection: ^1.19.1
+  custom_lint_builder: ^0.8.1
+  meta: ^1.17.0
+
+dev_dependencies:
+  custom_lint: ^0.8.1
+  lints: ^6.0.0
+  test: ^1.25.6
